@@ -1,9 +1,12 @@
 import streamlit as st
 import preprocessor,helper
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import seaborn as sns
 import pandas as pd
-from wordcloud import WordCloud
+import plotly.express as px
+
+#from wordcloud import WordCloud
 
 # from helper import most_common_words
 
@@ -17,7 +20,8 @@ if uploaded_file is not None:
 
         #Fetch unique users
         user_list = df['users'].unique().tolist()
-        user_list.remove('group_notification')
+        if 'group_notification' in user_list:
+            user_list.remove('group_notification')
         user_list.sort()
         user_list.insert(0,'Overall')
 
@@ -44,10 +48,10 @@ if uploaded_file is not None:
             col1, col2, col3, col4 = st.columns([1, 1, 1, 1], gap = "large")
 
             with col1:
-                st.header("Total Messages")
+                st.header("Total Message")
                 st.title(num_messages)
             with col2:
-                st.header("Total Words")
+                st.header("Total Word")
                 st.title(words)
             with col3:
                 st.header("Media Shared")
@@ -59,16 +63,27 @@ if uploaded_file is not None:
             #Monthly timeline
             st.title("Monthly Timeline")
             timeline = helper.monthly_timeline(selected_user, df)
+
             fig, ax = plt.subplots()
-            ax.plot(timeline['time'], timeline['messages'], color = 'red')
+            ax.plot(
+                timeline['time'],
+                timeline['messages'],
+                color = 'red'
+            )
+
             plt.xticks(rotation = 90)
             st.pyplot(fig)
 
             #Daily Timeline
             st.title("Daily Timeline")
             daily_timeline = helper.daily_timeline(selected_user, df)
+
             fig, ax = plt.subplots()
             ax.plot(daily_timeline['only_date'], daily_timeline['messages'], color='black')
+
+            # ax.xaxis.set_major_locator(mdates.DayLocator(interval = 20))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%y'))
+
             plt.xticks(rotation = 90)
             st.pyplot(fig)
 
@@ -95,8 +110,8 @@ if uploaded_file is not None:
 
             st.title("Weekly Activity Map")
             my_heatmap = helper.activity_heatmap(selected_user, df)
-            fig, ax = plt.subplots()
-            ax = sns.heatmap(my_heatmap)
+            fig, ax = plt.subplots(figsize = (10,6))
+            sns.heatmap(my_heatmap, ax = ax)
             st.pyplot(fig)
 
 
@@ -120,6 +135,7 @@ if uploaded_file is not None:
             df_wc = helper.create_wordcloud(selected_user, df)
             fig, ax = plt.subplots()
             ax.imshow(df_wc)
+            ax.axis("off")
             st.pyplot(fig)
 
             #Most Common Words
@@ -141,7 +157,30 @@ if uploaded_file is not None:
                 st.dataframe(emoji_df)
 
             with col2:
-                plt.rcParams['font.family'] = 'DejaVu Sans'
-                fig, ax = plt.subplots()
-                ax.pie(emoji_df['count'].head(), labels = emoji_df['emoji'].head(), autopct="%0.2f", textprops = {'fontsize': 18})
-                st.pyplot(fig)
+                fig = px.pie(
+                    emoji_df.head(),
+                    values='count',
+                    names='emoji'
+                )
+
+                fig.update_traces(
+                    textposition='auto',
+                    textinfo='percent+label',
+                    insidetextfont=dict(
+                        size=22,
+                        color = 'white'
+                    ),
+                    outsidetextfont=dict(
+                        size=28
+                    ),
+                    hoverinfo = 'skip',
+                    pull=[0.02] * len(emoji_df.head())
+                )
+
+                fig.update_layout(
+                    showlegend=False,
+                    uniformtext_minsize=16,
+                    uniformtext_mode='hide'
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
